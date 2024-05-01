@@ -11,18 +11,16 @@ class KeyloggerThread(Thread):
     def run(self):
         def on_press(key):
             try:
-                # Eğer basılan tuş bir karakter ise, metin kutusuna ekle
-                self.text_edit.append(key.char)
+                if key.char is not None:
+                    self.text_edit.insertPlainText(key.char)
             except AttributeError:
-                # Eğer basılan tuş bir özel tuş ise, işlem yapma
-                pass
+                if key == keyboard.Key.space:
+                    self.text_edit.insertPlainText(" ")
 
         def on_release(key):
             if key == keyboard.Key.esc:
-                # Eğer 'esc' tuşuna basılırsa dinleme durdurulur
                 return False
 
-        # Olay dinleyicilerini oluşturma
         with keyboard.Listener(on_press=on_press, on_release=on_release) as listener:
             listener.join()
 
@@ -36,7 +34,6 @@ def main():
     text_edit.move(50, 50)
     text_edit.resize(300, 150)
 
-    # Arka planda keylogger'ı çalıştıran bir thread oluştur
     keylogger_thread = KeyloggerThread(text_edit)
     keylogger_thread.start()
 
